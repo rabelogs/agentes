@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentes IA</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:#0F172A;color:#E2E8F0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:.5rem;color:#F8FAFC}
+p{font-size:.9rem;color:#94A3B8;margin-bottom:2.5rem}
+.cards{display:flex;gap:1.2rem;flex-wrap:wrap;justify-content:center}
+.card{background:#1E293B;border:1px solid #334155;border-radius:14px;padding:1.8rem 2rem;width:240px;text-decoration:none;color:inherit;transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-3px);border-color:#60A5FA}
+.card-icon{font-size:2rem;margin-bottom:.8rem}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:.4rem}
+.card-desc{font-size:.78rem;color:#94A3B8;line-height:1.5}
+.rf .card-icon{filter:hue-rotate(0deg)}
+.prog .card:hover{border-color:#4ADE80}
+</style>
+</head>
+<body>
+<h1>Agentes IA</h1>
+<p>Assistentes especializados com Claude</p>
+<div class="cards">
+  <a class="card rf" href="agente-renda-fixa.html">
+    <div class="card-icon">📈</div>
+    <div class="card-title">Agente de Renda Fixa</div>
+    <div class="card-desc">Especialista em mercado brasileiro — LTN, NTN-B, curva Svensson, IMA, break-even e histórico desde 2010.</div>
+  </a>
+  <a class="card prog" href="agente-programacao.html">
+    <div class="card-icon">💻</div>
+    <div class="card-title">Agente de Programação</div>
+    <div class="card-desc">Python, HTML/CSS/JS e Excel. Constrói scripts, dashboards e planilhas financeiras.</div>
+  </a>
+</div>
+</body>
+</html>

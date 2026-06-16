@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente de Programação</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F0F2F5;--card:#fff;--border:#DDE1E7;
+  --txt:#0D1B2A;--mut:#5A6478;--inv:#fff;
+  --accent:#0F4C35;--accent2:#16A34A;--user:#16A34A;
+  --agent:#1E293B;--hl:#F0FDF4;
+  --r:12px;--sh:0 2px 10px rgba(0,0,0,.08);
+  --hh:56px;
+}
+html,body{height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,Arial,sans-serif;font-size:15px;background:var(--bg);color:var(--txt);line-height:1.6}
+button,input,select,textarea{font-family:inherit}
+button{cursor:pointer;border:none;background:none;outline:none}
+
+/* HEADER */
+header{
+  height:var(--hh);background:linear-gradient(135deg,#052E16 0%,#0F4C35 100%);color:var(--inv);
+  display:flex;align-items:center;padding:0 1.2rem;gap:.9rem;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);position:fixed;top:0;left:0;right:0;z-index:100
+}
+.h-icon{width:34px;height:34px;background:rgba(255,255,255,.12);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.h-info{flex:1}
+.h-title{font-size:.95rem;font-weight:700;letter-spacing:-.01em}
+.h-sub{font-size:.63rem;opacity:.65;margin-top:1px}
+.h-actions{display:flex;gap:.5rem;align-items:center}
+.h-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:var(--inv);
+  padding:.28rem .75rem;border-radius:20px;font-size:.68rem;font-weight:600;
+  transition:background .15s;white-space:nowrap}
+.h-btn:hover{background:rgba(255,255,255,.22)}
+.h-btn.danger{border-color:rgba(255,100,100,.4);color:rgba(255,150,150,1)}
+.h-btn.danger:hover{background:rgba(255,80,80,.15)}
+.model-sel{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--inv);
+  padding:.28rem .5rem;border-radius:6px;font-size:.68rem;cursor:pointer;
+  appearance:none;-webkit-appearance:none;padding-right:1.2rem;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right .35rem center}
+.model-sel option{background:#0F4C35;color:white}
+
+/* CHAT */
+#chat-wrap{position:fixed;top:var(--hh);left:0;right:0;bottom:72px;overflow-y:auto;padding:1.2rem 0}
+#chat{max-width:860px;margin:0 auto;padding:0 1rem;display:flex;flex-direction:column;gap:1rem;min-height:100%}
+.welcome{text-align:center;margin:auto;padding:2rem 1rem;color:var(--mut)}
+.welcome-icon{font-size:2.8rem;margin-bottom:.6rem}
+.welcome h2{font-size:1.1rem;font-weight:700;color:var(--txt);margin-bottom:.4rem}
+.welcome p{font-size:.83rem;max-width:420px;margin:0 auto}
+
+/* MESSAGES */
+.msg{display:flex;gap:.7rem;align-items:flex-start;animation:msgIn .18s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{flex-direction:row-reverse}
+.avatar{width:30px;height:30px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;margin-top:2px}
+.avatar.agent-av{background:linear-gradient(135deg,#052E16,#0F4C35);color:white}
+.avatar.user-av{background:var(--user);color:white}
+.bubble{max-width:82%;padding:.75rem 1rem;border-radius:var(--r);font-size:.88rem;line-height:1.65;position:relative}
+.msg.agent .bubble{background:var(--card);border:1px solid var(--border);box-shadow:var(--sh);border-top-left-radius:4px;color:var(--txt)}
+.msg.user .bubble{background:var(--user);color:white;border-top-right-radius:4px}
+.msg-time{font-size:.6rem;opacity:.5;margin-top:.35rem;display:block}
+.msg.user .msg-time{text-align:right}
+
+/* MARKDOWN */
+.bubble h1,.bubble h2,.bubble h3{font-weight:700;margin:.8rem 0 .3rem;color:var(--agent)}
+.bubble h1{font-size:1rem}.bubble h2{font-size:.95rem}.bubble h3{font-size:.88rem}
+.msg.user .bubble h1,.msg.user .bubble h2,.msg.user .bubble h3{color:rgba(255,255,255,.9)}
+.bubble p{margin:.45rem 0}
+.bubble p:first-child{margin-top:0}.bubble p:last-child{margin-bottom:0}
+.bubble ul,.bubble ol{margin:.4rem 0 .4rem 1.4rem}
+.bubble li{margin:.25rem 0}
+.bubble strong{font-weight:700}
+.bubble em{font-style:italic}
+.bubble hr{border:none;border-top:1px solid var(--border);margin:.7rem 0}
+.bubble code{background:#F1F5F9;color:#C7254E;padding:.1rem .35rem;border-radius:4px;font-family:'Cascadia Code','Fira Code','Courier New',monospace;font-size:.82rem}
+.msg.user .bubble code{background:rgba(255,255,255,.2);color:#fff}
+.bubble pre{background:#0D1B2A;color:#E2E8F0;padding:.85rem 1rem;border-radius:8px;
+  overflow-x:auto;margin:.6rem 0;font-family:'Cascadia Code','Fira Code','Courier New',monospace;
+  font-size:.8rem;line-height:1.6;position:relative}
+.bubble pre code{background:none;color:inherit;padding:0;font-size:inherit}
+.copy-btn{position:absolute;top:.4rem;right:.4rem;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);
+  padding:.15rem .5rem;border-radius:4px;font-size:.65rem;cursor:pointer;transition:all .15s}
+.copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.bubble table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.82rem}
+.bubble th{background:#F1F5F9;font-weight:700;padding:.45rem .7rem;border:1px solid var(--border);text-align:left}
+.bubble td{padding:.4rem .7rem;border:1px solid var(--border)}
+.bubble tr:nth-child(even) td{background:#F8FAFC}
+.bubble blockquote{border-left:3px solid var(--accent2);padding:.3rem .8rem;background:var(--hl);
+  margin:.5rem 0;border-radius:0 6px 6px 0;color:var(--mut);font-style:italic}
+
+/* TYPING */
+.typing{display:flex;align-items:center;gap:.7rem;padding:.3rem 0}
+.typing .avatar{background:linear-gradient(135deg,#052E16,#0F4C35);color:white}
+.typing-dots{background:var(--card);border:1px solid var(--border);border-radius:var(--r);border-top-left-radius:4px;
+  padding:.7rem 1rem;display:flex;align-items:center;gap:.25rem}
+.dot{width:7px;height:7px;background:#94A3B8;border-radius:50%;animation:bounce .9s infinite}
+.dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1.1);opacity:1}}
+
+/* INPUT BAR */
+#input-bar{
+  position:fixed;bottom:0;left:0;right:0;background:var(--card);
+  border-top:1px solid var(--border);padding:.75rem 1rem;
+  box-shadow:0 -2px 10px rgba(0,0,0,.06)
+}
+.input-inner{max-width:860px;margin:0 auto;display:flex;gap:.6rem;align-items:flex-end}
+#msg-input{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;
+  font-size:.88rem;resize:none;min-height:44px;max-height:150px;overflow-y:auto;
+  transition:border-color .15s;line-height:1.5;color:var(--txt)}
+#msg-input:focus{border-color:var(--accent2);outline:none}
+#send-btn{width:44px;height:44px;background:var(--accent2);color:white;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  transition:background .15s;flex-shrink:0}
+#send-btn:hover{background:#15803D}
+#send-btn:disabled{background:#94A3B8;cursor:not-allowed}
+
+/* PAINEL DE CONVERSAS */
+#hist-panel{position:fixed;top:0;left:0;bottom:0;width:300px;background:#fff;
+  border-right:1px solid var(--border);box-shadow:4px 0 20px rgba(0,0,0,.12);
+  z-index:150;display:flex;flex-direction:column;transform:translateX(-100%);
+  transition:transform .22s ease}
+#hist-panel.open{transform:translateX(0)}
+.hp-header{padding:1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.hp-title{font-size:.85rem;font-weight:700;color:var(--txt)}
+.hp-close{font-size:1.1rem;color:var(--mut);cursor:pointer;padding:.2rem .4rem;transition:color .15s}
+.hp-close:hover{color:var(--txt)}
+.hp-list{flex:1;overflow-y:auto;padding:.5rem}
+.hp-empty{padding:1.5rem 1rem;text-align:center;color:var(--mut);font-size:.8rem}
+.hp-item{border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;margin-bottom:.5rem;cursor:pointer;transition:border-color .15s}
+.hp-item:hover{border-color:var(--accent2)}
+.hp-item-title{font-size:.8rem;font-weight:600;color:var(--txt);margin-bottom:.2rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-item-meta{font-size:.68rem;color:var(--mut)}
+.hp-item-actions{display:flex;gap:.4rem;margin-top:.5rem}
+.hp-action{font-size:.65rem;padding:.18rem .5rem;border-radius:4px;border:1px solid var(--border);
+  color:var(--mut);transition:all .15s;cursor:pointer}
+.hp-action:hover{border-color:var(--accent2);color:var(--accent2)}
+.hp-action.del:hover{border-color:#EF4444;color:#EF4444}
+#hist-overlay{position:fixed;inset:0;z-index:149;display:none}
+#hist-overlay.open{display:block}
+
+/* MODAL */
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#modal-bg.hidden{display:none}
+
+/* MODAL SALVAR */
+#save-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#save-modal-bg.hidden{display:none}
+.save-modal{background:var(--card);border-radius:14px;padding:1.5rem;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.save-modal h3{font-size:.95rem;margin-bottom:.8rem}
+.save-modal input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:.6rem .8rem;font-size:.88rem;color:var(--txt);margin-bottom:.8rem}
+.save-modal input:focus{border-color:var(--accent2);outline:none}
+.save-modal-actions{display:flex;gap:.5rem}
+.sm-btn{flex:1;padding:.6rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.sm-btn.primary{background:var(--accent2);color:white}
+.sm-btn.primary:hover{background:#15803D}
+.sm-btn.secondary{background:#F1F5F9;color:var(--txt)}
+.sm-btn.secondary:hover{background:#E2E8F0}
+.modal{background:var(--card);border-radius:16px;padding:2rem;width:min(440px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-icon{font-size:2rem;text-align:center;margin-bottom:.8rem}
+.modal h2{text-align:center;font-size:1.05rem;margin-bottom:.4rem}
+.modal p{text-align:center;font-size:.82rem;color:var(--mut);margin-bottom:1.2rem}
+.modal label{font-size:.78rem;font-weight:600;color:var(--mut);display:block;margin-bottom:.3rem}
+.modal input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:.65rem .8rem;font-size:.88rem;color:var(--txt)}
+.modal input:focus{border-color:var(--accent2);outline:none}
+.modal-hint{font-size:.72rem;color:var(--mut);margin-top:.4rem;margin-bottom:1.2rem}
+.modal-btn{width:100%;background:var(--accent2);color:white;padding:.75rem;border-radius:8px;font-size:.9rem;font-weight:700;transition:background .15s}
+.modal-btn:hover{background:#15803D}
+.modal-warn{font-size:.7rem;color:#94A3B8;text-align:center;margin-top:.8rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-icon">💻</div>
+  <div class="h-info">
+    <div class="h-title">Agente de Programação</div>
+    <div class="h-sub">Python · HTML · Excel · Projetos</div>
+  </div>
+  <div class="h-actions">
+    <select class="model-sel" id="model-sel" title="Modelo">
+      <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+      <option value="claude-haiku-4-5-20251001">Haiku 4.5 (rápido)</option>
+      <option value="claude-opus-4-8">Opus 4.8 (máximo)</option>
+    </select>
+    <button class="h-btn" onclick="openHistPanel()">Histórico</button>
+    <button class="h-btn" onclick="promptSave()">Salvar</button>
+    <button class="h-btn" onclick="newChat()">Nova conversa</button>
+    <span id="proxy-badge" title="Proxy local inativo" style="font-size:.6rem;padding:.18rem .5rem;border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.4);display:none">proxy</span>
+    <button class="h-btn danger" onclick="clearKey()">🔑 API Key</button>
+  </div>
+</header>
+
+<!-- PAINEL HISTÓRICO -->
+<div id="hist-overlay" onclick="closeHistPanel()"></div>
+<div id="hist-panel">
+  <div class="hp-header">
+    <span class="hp-title">Conversas salvas</span>
+    <span class="hp-close" onclick="closeHistPanel()">✕</span>
+  </div>
+  <div class="hp-list" id="hp-list"></div>
+</div>
+
+<!-- MODAL SALVAR -->
+<div id="save-modal-bg" class="hidden">
+  <div class="save-modal">
+    <h3>Salvar conversa</h3>
+    <input id="save-title-input" placeholder="Título da conversa..." maxlength="80">
+    <div class="save-modal-actions">
+      <button class="sm-btn secondary" onclick="closeSaveModal()">Cancelar</button>
+      <button class="sm-btn primary" onclick="confirmSave()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="chat-wrap">
+  <div id="chat">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">💻</div>
+      <h2>Agente de Programação</h2>
+      <p>Especialista em Python, HTML/CSS/JS e Excel. Descreva seu projeto ou cole seu código — vamos construir juntos.</p>
+    </div>
+  </div>
+</div>
+
+<div id="input-bar">
+  <div class="input-inner">
+    <textarea id="msg-input" placeholder="Descreva o que quer construir, cole um erro, ou faça uma pergunta..." rows="1"></textarea>
+    <button id="send-btn" onclick="sendMessage()" title="Enviar (Enter)">➤</button>
+  </div>
+</div>
+
+<div id="modal-bg">
+  <div class="modal">
+    <div class="modal-icon">🔑</div>
+    <h2>Chave da API Anthropic</h2>
+    <p>Informe sua API key para usar o agente. Ela fica salva apenas no seu browser.</p>
+    <label>API Key</label>
+    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off">
+    <div class="modal-hint">Obtenha em console.anthropic.com → API Keys</div>
+    <button class="modal-btn" onclick="saveKey()">Salvar e começar</button>
+    <div class="modal-warn">A chave é armazenada localmente no browser e nunca sai do seu computador.</div>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `Você é um especialista em programação com foco em Python, HTML/CSS/JavaScript e Excel/planilhas. Você trabalha em projetos reais do dia a dia — scripts de automação, dashboards, análise de dados, integrações com APIs e ferramentas financeiras.
+
+Seu estilo é direto e prático: você escreve código limpo, explica o que importa, e entrega soluções que funcionam. Quando o usuário traz um problema, você resolve — não só descreve como resolver.
+
+─────────────────────────────────────────
+PYTHON
+─────────────────────────────────────────
+Domínios principais:
+- Análise de dados: pandas, numpy, polars
+- Visualização: matplotlib, plotly, seaborn
+- APIs e web: requests, httpx, BeautifulSoup, selenium
+- Excel/planilhas: openpyxl, xlrd, xlwt, xlsxwriter, win32com (Excel COM)
+- Automação: pathlib, shutil, subprocess, schedule
+- Dados financeiros: bcb (SGS API), yfinance, blpapi/pdblp (Bloomberg)
+- Servidores locais: Flask, FastAPI
+- Ambiente: pip, venv, conda; Python 3.10+
+
+Boas práticas que você segue:
+- Código limpo sem comentários desnecessários
+- Tratamento de erros apenas nas bordas (entrada do usuário, APIs externas)
+- Nomes claros de variáveis — sem abreviações obscuras
+- f-strings em vez de .format() ou %
+- pathlib em vez de os.path
+- Preferência por código simples e linear a abstrações prematuras
+
+─────────────────────────────────────────
+HTML / CSS / JAVASCRIPT
+─────────────────────────────────────────
+Especialidade: aplicações HTML de arquivo único — self-contained, sem build, sem framework.
+- HTML semântico, CSS com variáveis (custom properties)
+- JavaScript vanilla moderno (async/await, fetch, ES2020+)
+- Layouts com flexbox e grid
+- Interfaces que chamam APIs externas (Anthropic, BCB, ANBIMA, Tesouro Direto, Bloomberg local)
+- LocalStorage para persistência de configurações
+- Markdown rendering sem dependências externas
+- Design system simples com tokens de cor e tipografia
+
+Você já construiu com o usuário:
+- agente-renda-fixa.html: chat com Claude via API Anthropic, dados ao vivo de BCB/ANBIMA/Tesouro Direto, servidor Bloomberg local, histórico de curvas
+- simulador de alocação dinâmica (Bradesco)
+
+─────────────────────────────────────────
+EXCEL / PLANILHAS
+─────────────────────────────────────────
+- Fórmulas avançadas: PROCV/XLOOKUP, ÍNDICE/CORRESP, SOMASES, SEQUÊNCIA, fórmulas matriciais
+- Tabelas dinâmicas e Power Query
+- VBA para automação quando necessário
+- Python ↔ Excel: openpyxl para leitura/escrita, win32com para automação via COM
+- Formatação condicional, validação de dados, proteção de planilhas
+- Contexto financeiro: modelos de precificação, duration, carry, mark-to-market
+
+─────────────────────────────────────────
+CONTEXTO DO USUÁRIO
+─────────────────────────────────────────
+- Trabalha com mercado financeiro brasileiro (renda fixa, crédito privado, macro)
+- Usa Bloomberg Terminal no trabalho
+- Python instalado no PC pessoal e provavelmente no trabalho
+- Projetos comuns: análise de dados financeiros, dashboards, scripts de automação, ferramentas de suporte a decisão de investimento
+- Prefere soluções simples e autocontidas — sem dependências desnecessárias
+
+─────────────────────────────────────────
+COMO VOCÊ SE COMPORTA
+─────────────────────────────────────────
+1. Quando o usuário descreve um projeto, entenda o objetivo antes de codificar — faça uma pergunta curta se algo for ambíguo
+2. Entregue código funcional e completo, não esqueletos
+3. Quando colar código, use blocos com a linguagem correta (python, html, javascript, etc.)
+4. Explique decisões não-óbvias, mas não narre o óbvio
+5. Se o código tiver mais de ~80 linhas, divida em partes com contexto entre elas
+6. Quando o usuário colar um erro, identifique a causa raiz — não só o sintoma
+7. Sugira melhorias ou alternativas quando fizer sentido, mas implemente o que foi pedido primeiro
+8. Responda sempre em português
+9. Se o usuário pedir algo que tem solução melhor do que ele imagina, aponte — mas execute o pedido dele também
+
+Comece com: "Olá! O que vamos construir hoje? Pode ser um script Python, um dashboard HTML, uma planilha automatizada — ou trazer um problema que está travando."`;
+
+// ─── API KEY ────────────────────────────────────────────
+function getKey(){ return localStorage.getItem('prog_api_key') || '' }
+async function saveKey(){
+  const k = document.getElementById('api-key-input').value.trim();
+  if(!k.startsWith('sk-')){ alert('Chave inválida. Deve começar com sk-'); return; }
+  localStorage.setItem('prog_api_key', k);
+  document.getElementById('modal-bg').classList.add('hidden');
+  await checkProxy();
+  startConversation();
+}
+function clearKey(){
+  localStorage.removeItem('prog_api_key');
+  location.reload();
+}
+
+// ─── ESTADO ─────────────────────────────────────────────
+let history = [];
+let isLoading = false;
+let proxyAvailable = false;
+
+const BBG_URL = 'http://localhost:5001';
+
+async function checkProxy(){
+  try {
+    const r = await fetch(`${BBG_URL}/api/status`, { signal: AbortSignal.timeout(800) });
+    if(r.ok){
+      const s = await r.json();
+      proxyAvailable = !!s.proxy;
+      if(proxyAvailable){
+        const badge = document.getElementById('proxy-badge');
+        if(badge){ badge.style.display=''; badge.style.color='rgba(150,255,150,.85)'; badge.style.borderColor='rgba(100,255,100,.3)'; badge.title='Proxy local ativo'; }
+      }
+    }
+  } catch(e){ proxyAvailable = false; }
+}
+
+// ─── INIT ───────────────────────────────────────────────
+window.onload = async function(){
+  await checkProxy();
+  if(!getKey()){
+    document.getElementById('modal-bg').classList.remove('hidden');
+  } else {
+    document.getElementById('modal-bg').classList.add('hidden');
+    startConversation();
+  }
+  const inp = document.getElementById('msg-input');
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+  inp.addEventListener('input', () => {
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 150) + 'px';
+  });
+  document.getElementById('api-key-input').addEventListener('keydown', e => {
+    if(e.key === 'Enter') saveKey();
+  });
+};
+
+// ─── CHAT ───────────────────────────────────────────────
+function startConversation(){
+  callAPI([{ role:'user', content:'Olá!' }], true);
+}
+
+function newChat(){
+  history = [];
+  const chat = document.getElementById('chat');
+  chat.innerHTML = '<div class="welcome" id="welcome"><div class="welcome-icon">💻</div><h2>Agente de Programação</h2><p>Especialista em Python, HTML/CSS/JS e Excel. Descreva seu projeto ou cole seu código — vamos construir juntos.</p></div>';
+  startConversation();
+}
+
+async function sendMessage(){
+  if(isLoading) return;
+  const inp  = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+  const welcome = document.getElementById('welcome');
+  if(welcome) welcome.remove();
+  addMessage('user', text);
+  history.push({ role:'user', content:text });
+  await callAPI(history, false);
+}
+
+// ─── API ────────────────────────────────────────────────
+async function callAPI(msgs, isInit){
+  if(isLoading) return;
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  const typingEl = addTyping();
+  try {
+    const model = document.getElementById('model-sel').value;
+    const apiUrl = proxyAvailable
+      ? 'http://localhost:5001/proxy/messages'
+      : 'https://api.anthropic.com/v1/messages';
+    const hdrs = {
+      'x-api-key': getKey(),
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    };
+    if(!proxyAvailable) hdrs['anthropic-dangerous-direct-browser-access'] = 'true';
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({ model, max_tokens: 8096, system: SYSTEM_PROMPT, messages: msgs })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Erro ${res.status}`);
+    }
+    const data  = await res.json();
+    const reply = data.content[0]?.text || '';
+    typingEl.remove();
+    if(isInit){
+      const welcome = document.getElementById('welcome');
+      if(welcome) welcome.remove();
+      history = [{ role:'user', content:'Olá!' }, { role:'assistant', content:reply }];
+    } else {
+      history.push({ role:'assistant', content:reply });
+    }
+    addMessage('agent', reply);
+  } catch(e) {
+    typingEl.remove();
+    addMessage('agent', `**Erro ao conectar com a API:** ${e.message}\n\nVerifique sua API key em 🔑 API Key.`);
+  }
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('msg-input').focus();
+}
+
+// ─── UI ─────────────────────────────────────────────────
+function addMessage(role, text){
+  const chat    = document.getElementById('chat');
+  const isAgent = role === 'agent';
+  const now     = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  const div     = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="avatar ${isAgent ? 'agent-av' : 'user-av'}">${isAgent ? '💻' : 'G'}</div>
+    <div>
+      <div class="bubble">${isAgent ? renderMarkdown(text) : escHtml(text)}</div>
+      <span class="msg-time">${now}</span>
+    </div>`;
+  chat.appendChild(div);
+  // adiciona botão copiar em cada bloco de código
+  div.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copiar';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText);
+      btn.textContent = 'copiado!';
+      setTimeout(() => btn.textContent = 'copiar', 1800);
+    };
+    pre.style.position = 'relative';
+    pre.appendChild(btn);
+  });
+  scrollBottom();
+}
+
+function addTyping(){
+  const chat = document.getElementById('chat');
+  const div  = document.createElement('div');
+  div.className = 'typing';
+  div.innerHTML = `<div class="avatar agent-av">💻</div><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  chat.appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function scrollBottom(){
+  document.getElementById('chat-wrap').scrollTop = 999999;
+}
+
+function escHtml(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── MARKDOWN ────────────────────────────────────────────
+function renderMarkdown(text){
+  // blocos de código (com linguagem)
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+    `<pre><code class="lang-${lang}">${escHtml(code.trim())}</code></pre>`);
+  // tabelas
+  text = text.replace(/(\|.+\|\n?)+/g, tbl => {
+    const rows = tbl.trim().split('\n').filter(r => r.trim());
+    let html = '<table>';
+    rows.forEach((row, i) => {
+      if(/^\|[-:\s|]+\|$/.test(row)) return;
+      const cells = row.split('|').slice(1,-1).map(c => c.trim());
+      const tag   = i === 0 ? 'th' : 'td';
+      html += '<tr>' + cells.map(c => `<${tag}>${renderInline(c)}</${tag}>`).join('') + '</tr>';
+    });
+    return html + '</table>';
+  });
+  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+  text = text.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
+  text = text.replace(/^---+$/gm, '<hr>');
+  text = text.replace(/((?:^[-*+] .+\n?)+)/gm, block => {
+    const items = block.trim().split('\n').map(l => `<li>${renderInline(l.replace(/^[-*+] /,''))}</li>`).join('');
+    return `<ul>${items}</ul>`;
+  });
+  text = text.replace(/((?:^\d+\. .+\n?)+)/gm, block => {
+    const items = block.trim().split('\n').map(l => `<li>${renderInline(l.replace(/^\d+\. /,''))}</li>`).join('');
+    return `<ol>${items}</ol>`;
+  });
+  text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  text = text.split(/\n{2,}/).map(p => {
+    p = p.trim();
+    if(!p) return '';
+    if(/^<(h[1-6]|ul|ol|pre|table|hr|blockquote)/.test(p)) return p;
+    return `<p>${renderInline(p)}</p>`;
+  }).join('');
+  return text;
+}
+
+function renderInline(text){
+  text = text.replace(/`([^`]+)`/g,    '<code>$1</code>');
+  text = text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g,    '<em>$1</em>');
+  text = text.replace(/__(.+?)__/g,    '<strong>$1</strong>');
+  text = text.replace(/_(.+?)_/g,      '<em>$1</em>');
+  text = text.replace(/\n/g, '<br>');
+  return text;
+}
+
+// ─── CONVERSAS SALVAS ────────────────────────────────────
+const STORAGE_KEY = 'prog_conversations';
+
+function loadAllConversations(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveAllConversations(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function autoTitle(){
+  const first = history.find(m => m.role === 'user');
+  if(!first) return 'Conversa sem título';
+  return first.content.substring(0, 60) + (first.content.length > 60 ? '...' : '');
+}
+
+// ── Salvar ───────────────────────────────────────────────
+function promptSave(){
+  if(history.length < 2){ alert('Nada para salvar ainda.'); return; }
+  document.getElementById('save-title-input').value = autoTitle();
+  document.getElementById('save-modal-bg').classList.remove('hidden');
+  setTimeout(() => {
+    const inp = document.getElementById('save-title-input');
+    inp.focus(); inp.select();
+  }, 50);
+}
+function closeSaveModal(){
+  document.getElementById('save-modal-bg').classList.add('hidden');
+}
+function confirmSave(){
+  const title = document.getElementById('save-title-input').value.trim() || autoTitle();
+  const list  = loadAllConversations();
+  list.unshift({
+    id:       Date.now().toString(),
+    title,
+    date:     new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    messages: JSON.parse(JSON.stringify(history)),
+  });
+  saveAllConversations(list);
+  closeSaveModal();
+  renderHistPanel();
+  showToast('Conversa salva!');
+}
+
+// ── Painel histórico ────────────────────────────────────
+function openHistPanel(){
+  renderHistPanel();
+  document.getElementById('hist-panel').classList.add('open');
+  document.getElementById('hist-overlay').classList.add('open');
+}
+function closeHistPanel(){
+  document.getElementById('hist-panel').classList.remove('open');
+  document.getElementById('hist-overlay').classList.remove('open');
+}
+function renderHistPanel(){
+  const list = loadAllConversations();
+  const el   = document.getElementById('hp-list');
+  if(!list.length){
+    el.innerHTML = '<div class="hp-empty">Nenhuma conversa salva ainda.<br><br>Use o botão <strong>Salvar</strong> para guardar a conversa atual.</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="hp-item">
+      <div class="hp-item-title" title="${escHtml(c.title)}">${escHtml(c.title)}</div>
+      <div class="hp-item-meta">${c.date} · ${c.messages.filter(m=>m.role==='user').length} msgs</div>
+      <div class="hp-item-actions">
+        <button class="hp-action" onclick="loadConversation('${c.id}')">Abrir</button>
+        <button class="hp-action" onclick="downloadConversation('${c.id}')">Baixar .md</button>
+        <button class="hp-action del" onclick="deleteConversation('${c.id}')">Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+function loadConversation(id){
+  const list = loadAllConversations();
+  const conv = list.find(c => c.id === id);
+  if(!conv) return;
+  history = conv.messages;
+  const chat = document.getElementById('chat');
+  chat.innerHTML = '';
+  history.forEach(m => addMessage(m.role === 'user' ? 'user' : 'agent', m.content));
+  closeHistPanel();
+}
+
+function deleteConversation(id){
+  if(!confirm('Excluir esta conversa?')) return;
+  const list = loadAllConversations().filter(c => c.id !== id);
+  saveAllConversations(list);
+  renderHistPanel();
+}
+
+function downloadConversation(id){
+  const list = loadAllConversations();
+  const conv = list.find(c => c.id === id) || { title: autoTitle(), date: '', messages: history };
+  const md   = conversationToMarkdown(conv);
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = conv.title.replace(/[^a-zA-Z0-9À-ÿ\s-]/g, '').trim().replace(/\s+/g, '_') + '.md';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function conversationToMarkdown(conv){
+  let md = `# ${conv.title}\n`;
+  if(conv.date) md += `_Salvo em ${conv.date}_\n`;
+  md += '\n---\n\n';
+  conv.messages.forEach(m => {
+    if(m.role === 'user')
+      md += `**Você:** ${m.content}\n\n`;
+    else
+      md += `**Agente:**\n\n${m.content}\n\n---\n\n`;
+  });
+  return md;
+}
+
+// ── Toast de confirmação ────────────────────────────────
+function showToast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+    background:'#16A34A', color:'#fff', padding:'.45rem 1.1rem',
+    borderRadius:'20px', fontSize:'.78rem', fontWeight:'600',
+    zIndex:'300', boxShadow:'0 4px 12px rgba(0,0,0,.2)',
+    animation:'msgIn .2s ease'
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// atalho teclado Ctrl+S
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key === 's'){ e.preventDefault(); promptSave(); }
+});
+</script>
+</body>
+</html>
