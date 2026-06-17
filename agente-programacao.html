@@ -42,6 +42,8 @@ header{
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right .35rem center}
 .model-sel option{background:#0F4C35;color:white}
+.cost-chip{font-size:.6rem;padding:.18rem .5rem;border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.45);cursor:default;white-space:nowrap;transition:color .2s}
+.cost-chip:hover{color:rgba(255,255,255,.85)}
 
 /* CHAT */
 #chat-wrap{position:fixed;top:var(--hh);left:0;right:0;bottom:72px;overflow-y:auto;padding:1.2rem 0}
@@ -194,6 +196,7 @@ header{
     <button class="h-btn" onclick="openHistPanel()">Histórico</button>
     <button class="h-btn" onclick="promptSave()">Salvar</button>
     <button class="h-btn" onclick="newChat()">Nova conversa</button>
+    <span id="cost-chip" class="cost-chip" style="display:none" title="Custo estimado da sessão">$0.0000</span>
     <span id="proxy-badge" title="Proxy local inativo" style="font-size:.6rem;padding:.18rem .5rem;border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.4);display:none">proxy</span>
     <button class="h-btn danger" onclick="clearKey()">🔑 API Key</button>
   </div>
@@ -349,6 +352,33 @@ let proxyAvailable = false;
 
 const BBG_URL = 'http://localhost:5001';
 
+// ─── CUSTO DE TOKENS ────────────────────────────────────
+const MODEL_PRICE = {
+  'claude-haiku-4-5-20251001': { in: 0.80, out: 4.00 },
+  'claude-sonnet-4-6':         { in: 3.00, out: 15.00 },
+  'claude-opus-4-8':           { in: 15.00, out: 75.00 },
+};
+let sessionIn = 0, sessionOut = 0, sessionCost = 0;
+
+function addCost(model, tokIn, tokOut){
+  const p = MODEL_PRICE[model] || { in: 3.00, out: 15.00 };
+  sessionIn   += tokIn;
+  sessionOut  += tokOut;
+  sessionCost += (tokIn * p.in + tokOut * p.out) / 1e6;
+  const chip = document.getElementById('cost-chip');
+  if(chip){
+    chip.style.display = '';
+    chip.textContent   = `$${sessionCost.toFixed(4)}`;
+    chip.title         = `Sessão: ${sessionIn.toLocaleString()} tokens entrada · ${sessionOut.toLocaleString()} saída\nCusto estimado: $${sessionCost.toFixed(4)} USD`;
+  }
+}
+
+function resetCost(){
+  sessionIn = sessionOut = sessionCost = 0;
+  const chip = document.getElementById('cost-chip');
+  if(chip){ chip.style.display='none'; chip.textContent='$0.0000'; }
+}
+
 async function checkProxy(){
   try {
     const r = await fetch(`${BBG_URL}/api/status`, { signal: AbortSignal.timeout(800) });
@@ -392,6 +422,7 @@ function startConversation(){
 
 function newChat(){
   history = [];
+  resetCost();
   const chat = document.getElementById('chat');
   chat.innerHTML = '<div class="welcome" id="welcome"><div class="welcome-icon">💻</div><h2>Agente de Programação</h2><p>Especialista em Python, HTML/CSS/JS e Excel. Descreva seu projeto ou cole seu código — vamos construir juntos.</p></div>';
   startConversation();
@@ -420,6 +451,7 @@ async function callAPI(msgs, isInit){
   let bubbleEl  = null;
   let fullText  = '';
   let renderPending = false;
+  let _tokIn = 0, _tokOut = 0;
 
   function scheduleRender(){
     if(!renderPending){
@@ -468,7 +500,11 @@ async function callAPI(msgs, isInit){
         if(raw === '[DONE]') continue;
         try {
           const evt = JSON.parse(raw);
-          if(evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta'){
+          if(evt.type === 'message_start'){
+            _tokIn = evt.message?.usage?.input_tokens || 0;
+          } else if(evt.type === 'message_delta'){
+            _tokOut = evt.usage?.output_tokens || 0;
+          } else if(evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta'){
             if(!bubbleEl){
               typingEl.remove();
               const welcome = document.getElementById('welcome');
@@ -484,6 +520,8 @@ async function callAPI(msgs, isInit){
 
     if(bubbleEl){ bubbleEl.innerHTML = renderMarkdown(fullText); scrollBottom(); }
     else { typingEl.remove(); }
+
+    if(_tokIn || _tokOut) addCost(document.getElementById('model-sel').value, _tokIn, _tokOut);
 
     if(isInit){
       history = [{ role:'user', content:'Olá!' }, { role:'assistant', content:fullText }];
