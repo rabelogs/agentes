@@ -408,12 +408,26 @@ async function sendMessage(){
   await callAPI(history, false);
 }
 
-// ─── API ────────────────────────────────────────────────
+// ─── API (STREAMING) ────────────────────────────────────
 async function callAPI(msgs, isInit){
   if(isLoading) return;
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
   const typingEl = addTyping();
+  let bubbleEl  = null;
+  let fullText  = '';
+  let renderPending = false;
+
+  function scheduleRender(){
+    if(!renderPending){
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderPending = false;
+        if(bubbleEl){ bubbleEl.innerHTML = renderMarkdown(fullText); scrollBottom(); }
+      });
+    }
+  }
+
   try {
     const model = document.getElementById('model-sel').value;
     const apiUrl = proxyAvailable
@@ -428,26 +442,56 @@ async function callAPI(msgs, isInit){
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: hdrs,
-      body: JSON.stringify({ model, max_tokens: 8096, system: SYSTEM_PROMPT, messages: msgs })
+      body: JSON.stringify({ model, max_tokens: 8096, stream: true, system: SYSTEM_PROMPT, messages: msgs })
     });
     if(!res.ok){
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error?.message || `Erro ${res.status}`);
     }
-    const data  = await res.json();
-    const reply = data.content[0]?.text || '';
-    typingEl.remove();
-    if(isInit){
-      const welcome = document.getElementById('welcome');
-      if(welcome) welcome.remove();
-      history = [{ role:'user', content:'Olá!' }, { role:'assistant', content:reply }];
-    } else {
-      history.push({ role:'assistant', content:reply });
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if(raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if(evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta'){
+            if(!bubbleEl){
+              typingEl.remove();
+              const welcome = document.getElementById('welcome');
+              if(welcome) welcome.remove();
+              bubbleEl = addStreamingMessage();
+            }
+            fullText += evt.delta.text;
+            scheduleRender();
+          }
+        } catch(_){}
+      }
     }
-    addMessage('agent', reply);
+
+    if(bubbleEl){ bubbleEl.innerHTML = renderMarkdown(fullText); scrollBottom(); }
+    else { typingEl.remove(); }
+
+    if(isInit){
+      history = [{ role:'user', content:'Olá!' }, { role:'assistant', content:fullText }];
+    } else {
+      history.push({ role:'assistant', content:fullText });
+    }
   } catch(e) {
-    typingEl.remove();
-    addMessage('agent', `**Erro ao conectar com a API:** ${e.message}\n\nVerifique sua API key em 🔑 API Key.`);
+    if(!bubbleEl){
+      typingEl.remove();
+      addMessage('agent', `**Erro ao conectar com a API:** ${e.message}\n\nVerifique sua API key em 🔑 API Key.`);
+    }
   }
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
@@ -492,6 +536,22 @@ function addTyping(){
   chat.appendChild(div);
   scrollBottom();
   return div;
+}
+
+function addStreamingMessage(){
+  const chat = document.getElementById('chat');
+  const now  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  const div  = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = `
+    <div class="avatar agent-av">💻</div>
+    <div>
+      <div class="bubble"></div>
+      <span class="msg-time">${now}</span>
+    </div>`;
+  chat.appendChild(div);
+  scrollBottom();
+  return div.querySelector('.bubble');
 }
 
 function scrollBottom(){
