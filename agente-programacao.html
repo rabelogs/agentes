@@ -82,10 +82,13 @@ header{
   overflow-x:auto;margin:.6rem 0;font-family:'Cascadia Code','Fira Code','Courier New',monospace;
   font-size:.8rem;line-height:1.6;position:relative}
 .bubble pre code{background:none;color:inherit;padding:0;font-size:inherit}
+.code-block{position:relative;margin:.6rem 0}
+.code-block pre{margin:0}
 .copy-btn{position:absolute;top:.4rem;right:.4rem;background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);
-  padding:.15rem .5rem;border-radius:4px;font-size:.65rem;cursor:pointer;transition:all .15s}
+  padding:.15rem .5rem;border-radius:4px;font-size:.65rem;cursor:pointer;transition:all .15s;user-select:none}
 .copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.copy-btn.copied{background:rgba(74,222,128,.2);border-color:rgba(74,222,128,.4);color:#4ADE80}
 .bubble table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.82rem}
 .bubble th{background:#F1F5F9;font-weight:700;padding:.45rem .7rem;border:1px solid var(--border);text-align:left}
 .bubble td{padding:.4rem .7rem;border:1px solid var(--border)}
@@ -562,11 +565,27 @@ function escHtml(t){
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ─── COPY CODE ───────────────────────────────────────────
+function copyCode(btn){
+  const text = btn.getAttribute('data-code')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    btn.textContent = 'Erro';
+    setTimeout(() => { btn.textContent = 'Copiar'; }, 1500);
+  });
+}
+
 // ─── MARKDOWN ────────────────────────────────────────────
 function renderMarkdown(text){
   // blocos de código (com linguagem)
-  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
-    `<pre><code class="lang-${lang}">${escHtml(code.trim())}</code></pre>`);
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const safe = escHtml(code.trim());
+    return `<div class="code-block"><button class="copy-btn" onclick="copyCode(this)" data-code="${safe}">Copiar</button><pre><code class="lang-${lang}">${safe}</code></pre></div>`;
+  });
   // tabelas
   text = text.replace(/(\|.+\|\n?)+/g, tbl => {
     const rows = tbl.trim().split('\n').filter(r => r.trim());
